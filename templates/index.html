@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TruthLens — Fake News Detector</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- ================= SIDEBAR ================= -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-logo">TL</div>
+
+            <div>
+                <h2>TruthLens</h2>
+                <span>AI Fact Checker</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+
+            <a href="#analyzer" class="nav-item active">
+                <span class="nav-icon">⌕</span>
+                Analyzer
+            </a>
+
+            <a href="#history" class="nav-item">
+                <span class="nav-icon">↻</span>
+                History
+            </a>
+
+            <a href="#how-it-works" class="nav-item">
+                <span class="nav-icon">◇</span>
+                How it works
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="engine-status">
+
+                <div class="status-dot"></div>
+
+                <div>
+                    <strong>ML engine</strong>
+
+                    {% if ml_ready %}
+                        <span>Ready</span>
+                    {% else %}
+                        <span>LLM fallback</span>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <button class="theme-button" onclick="toggleTheme()">
+                ☾ &nbsp; Toggle theme
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="main">
+
+        <!-- HEADER -->
+
+        <header class="top-header">
+
+            <div>
+
+                <div class="eyebrow">
+                    HYBRID INTELLIGENCE
+                </div>
+
+                <h1>
+                    Verify before you amplify.
+                </h1>
+
+                <p>
+                    Analyze headlines and articles using statistical
+                    machine learning plus contextual AI reasoning.
+                </p>
+
+            </div>
+
+            <div class="system-status">
+                <span class="status-dot"></span>
+                System online
+            </div>
+
+        </header>
+
+
+        <!-- WARNING -->
+
+        {% if not ml_ready %}
+
+        <div class="warning-banner">
+
+            <span class="warning-icon">⚠</span>
+
+            <div>
+                <strong>ML model is not available</strong>
+
+                <p>
+                    Run
+                    <code>python src/train_ml_model.py</code>
+                    to enable the statistical ML model.
+                    The application can still use LLM/fallback analysis.
+                </p>
+            </div>
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- ANALYZER GRID -->
+
+        <section class="analysis-grid" id="analyzer">
+
+            <!-- ================= INPUT ================= -->
+
+            <div class="panel input-panel">
+
+                <div class="panel-header">
+
+                    <div class="section-number">
+                        01
+                    </div>
+
+                    <div class="panel-title">
+
+                        <h2>News to analyze</h2>
+
+                        <p>
+                            Paste a headline, claim, or article excerpt.
+                        </p>
+
+                    </div>
+
+                    <span class="live-label">
+                        ● LIVE
+                    </span>
+
+                </div>
+
+
+                <form method="POST" action="/predict">
+
+                    <div class="textarea-wrapper">
+
+                        <textarea
+                            id="text"
+                            name="text"
+                            maxlength="12000"
+                            placeholder="Paste a news headline or article here..."
+                            required>{{ input_text or '' }}</textarea>
+
+                        <div class="textarea-footer">
+
+                            <span id="char-count">
+                                0 / 12,000
+                            </span>
+
+                            <span>
+                                For best results, include the full claim
+                                and source context.
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-actions">
+
+                        <button
+                            type="button"
+                            class="secondary-button"
+                            onclick="loadSample()">
+
+                            Try sample
+                        </button>
+
+                        <button
+                            type="button"
+                            class="clear-button"
+                            onclick="clearText()">
+
+                            Clear
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="analyze-button">
+
+                            ✦ Analyze story
+                            <span>→</span>
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+
+                <div class="examples">
+
+                    <span>Quick examples:</span>
+
+                    <button onclick="setExample('miracle')">
+                        Miracle cure
+                    </button>
+
+                    <button onclick="setExample('weather')">
+                        Weather report
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= VERDICT ================= -->
+
+            <div class="panel verdict-panel">
+
+                <div class="panel-header">
+
+                    <div class="section-number">
+                        02
+                    </div>
+
+                    <div class="panel-title">
+
+                        <h2>Verdict</h2>
+
+                        <p>
+                            Hybrid model assessment
+                        </p>
+
+                    </div>
+
+                    <span class="copy-icon"
+                          onclick="copyResult()">
+                        ⧉
+                    </span>
+
+                </div>
+
+
+                {% if result %}
+
+                <div class="verdict-box
+                    {{ 'fake-result' if result.final_verdict == 'FAKE'
+                       else 'real-result' }}">
+
+                    <div class="verdict-icon">
+
+                        {% if result.final_verdict == 'FAKE' %}
+                            !
+                        {% else %}
+                            ✓
+                        {% endif %}
+
+                    </div>
+
+                    <div class="verdict-main">
+
+                        <h2>
+                            {{ result.final_verdict }}
+                        </h2>
+
+                        <span>
+                            AI-assisted classification
+                        </span>
+
+                    </div>
+
+                    <div class="confidence-value">
+
+                        <strong>
+                            {{ "%.1f"|format(result.final_confidence * 100) }}%
+                        </strong>
+
+                        <span>confidence</span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- CONFIDENCE BAR -->
+
+                <div class="confidence-bar">
+
+                    <div
+                        class="confidence-fill"
+                        style="width: {{ result.final_confidence * 100 }}%">
+                    </div>
+
+                </div>
+
+
+                <!-- STAT CARDS -->
+
+                <div class="stats-grid">
+
+                    <div class="stat-card">
+
+                        <span>Final verdict</span>
+
+                        <strong>
+                            {{ result.final_verdict }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <span>Confidence</span>
+
+                        <strong>
+                            {{ "%.1f"|format(result.final_confidence * 100) }}%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <span>Red flags</span>
+
+                        <strong>
+                            {{ result.red_flags|length if result.red_flags else 0 }}
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- EXPLANATION -->
+
+                <div class="result-section">
+
+                    <h3>
+                        AI explanation
+                    </h3>
+
+                    <p>
+                        {{ result.explanation }}
+                    </p>
+
+                </div>
+
+
+                <!-- RED FLAGS -->
+
+                {% if result.red_flags %}
+
+                <div class="result-section">
+
+                    <h3>
+                        Red flags & signals
+                    </h3>
+
+                    <div class="red-flags">
+
+                        {% for flag in result.red_flags %}
+
+                        <div class="red-flag">
+                            ⚠ {{ flag }}
+                        </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+
+                {% else %}
+
+                <div class="result-section">
+
+                    <h3>
+                        Red flags & signals
+                    </h3>
+
+                    <div class="no-flags">
+                        ✓ No strong red flags detected
+                    </div>
+
+                </div>
+
+                {% endif %}
+
+
+                <!-- COMPONENT BREAKDOWN -->
+
+                <details class="breakdown">
+
+                    <summary>
+                        ▶ View model breakdown
+                    </summary>
+
+                    <pre>{{ result.components }}</pre>
+
+                </details>
+
+
+                <div class="disclaimer">
+
+                    ⚠ This is an AI-assisted screening tool, not proof
+                    of truth or falsity. Verify important claims with
+                    reliable primary sources.
+
+                </div>
+
+
+                {% else %}
+
+                <!-- EMPTY STATE -->
+
+                <div class="empty-result">
+
+                    <div class="empty-icon">
+                        ✦
+                    </div>
+
+                    <h3>
+                        Waiting for analysis
+                    </h3>
+
+                    <p>
+                        Submit a headline or article to see the
+                        hybrid ML + AI assessment here.
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+        </section>
+
+
+        <!-- ERROR -->
+
+        {% if error %}
+
+        <div class="error-message">
+
+            ⚠ {{ error }}
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- ================= RECENT ANALYSES ================= -->
+
+        <section class="panel recent-panel" id="history">
+
+            <div class="panel-header">
+
+                <div class="section-number">
+                    03
+                </div>
+
+                <div class="panel-title">
+
+                    <h2>Recent analyses</h2>
+
+                    <p>
+                        Saved locally in this browser.
+                    </p>
+
+                </div>
+
+                <button
+                    class="clear-history"
+                    onclick="clearHistory()">
+
+                    Clear all
+
+                </button>
+
+            </div>
+
+            <div id="history-list">
+
+                <div class="history-empty">
+                    No recent analyses yet.
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= HOW IT WORKS ================= -->
+
+        <section class="panel how-panel" id="how-it-works">
+
+            <div class="eyebrow">
+                PIPELINE
+            </div>
+
+            <h2>
+                How TruthLens works
+            </h2>
+
+            <p class="how-description">
+                The system combines multiple signals instead of relying
+                on a single prediction.
+            </p>
+
+
+            <div class="pipeline">
+
+                <div class="pipeline-step">
+
+                    <span>01</span>
+
+                    <div>
+                        <h3>Input</h3>
+                        <p>
+                            News headline or article is submitted.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <span>02</span>
+
+                    <div>
+                        <h3>Statistical ML</h3>
+                        <p>
+                            The trained ML model analyzes textual patterns.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <span>03</span>
+
+                    <div>
+                        <h3>AI reasoning</h3>
+                        <p>
+                            Context and possible red flags are evaluated.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <span>04</span>
+
+                    <div>
+                        <h3>Final verdict</h3>
+                        <p>
+                            The available signals are combined into
+                            the final assessment.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+
+        <footer>
+
+            <span>
+                TruthLens
+            </span>
+
+            <span>
+                AI-assisted Fake News Detection
+            </span>
+
+            <span>
+                API: POST /api/predict
+            </span>
+
+        </footer>
+
+    </main>
+
+</div>
+
+
+<!-- ================= JAVASCRIPT ================= -->
+
+<script>
+
+const textarea = document.getElementById("text");
+const counter = document.getElementById("char-count");
+
+
+// Character counter
+
+function updateCounter() {
+
+    if (!textarea) return;
+
+    counter.textContent =
+        textarea.value.length.toLocaleString()
+        + " / 12,000";
+}
+
+if (textarea) {
+
+    textarea.addEventListener(
+        "input",
+        updateCounter
+    );
+
+    updateCounter();
+}
+
+
+// Clear input
+
+function clearText() {
+
+    if (textarea) {
+
+        textarea.value = "";
+
+        updateCounter();
+
+        textarea.focus();
+    }
+}
+
+
+// Sample article
+
+function loadSample() {
+
+    textarea.value =
+        "Scientists have discovered a revolutionary new treatment " +
+        "that can cure every type of cancer within 24 hours. " +
+        "Researchers say the treatment has a 100% success rate " +
+        "and will soon be available to everyone.";
+
+    updateCounter();
+
+    textarea.focus();
+}
+
+
+// Quick examples
+
+function setExample(type) {
+
+    if (type === "miracle") {
+
+        textarea.value =
+            "Doctors reveal a miracle treatment that cures all " +
+            "diseases instantly with one simple procedure.";
+
+    }
+
+    if (type === "weather") {
+
+        textarea.value =
+            "The meteorological department has issued a weather " +
+            "advisory following heavy rainfall expected in several regions.";
+
+    }
+
+    updateCounter();
+
+    textarea.focus();
+}
+
+
+// Copy result
+
+function copyResult() {
+
+    const verdict =
+        document.querySelector(".verdict-main h2");
+
+    if (!verdict) return;
+
+    navigator.clipboard.writeText(
+        "TruthLens verdict: " +
+        verdict.textContent.trim()
+    );
+}
+
+
+// ================= HISTORY =================
+
+function saveHistory() {
+
+    const text = textarea ? textarea.value.trim() : "";
+
+    const verdict =
+        document.querySelector(".verdict-main h2");
+
+    const confidence =
+        document.querySelector(".confidence-value strong");
+
+    if (!text || !verdict) return;
+
+    const history =
+        JSON.parse(
+            localStorage.getItem("truthlens_history") || "[]"
+        );
+
+    history.unshift({
+
+        text: text.substring(0, 100),
+
+        verdict: verdict.textContent.trim(),
+
+        confidence:
+            confidence
+            ? confidence.textContent.trim()
+            : "",
+
+        time: new Date().toLocaleString()
+
+    });
+
+    localStorage.setItem(
+        "truthlens_history",
+        JSON.stringify(history.slice(0, 5))
+    );
+}
+
+
+function displayHistory() {
+
+    const container =
+        document.getElementById("history-list");
+
+    const history =
+        JSON.parse(
+            localStorage.getItem("truthlens_history") || "[]"
+        );
+
+    if (!history.length) {
+
+        container.innerHTML =
+            '<div class="history-empty">' +
+            'No recent analyses yet.' +
+            '</div>';
+
+        return;
+    }
+
+    container.innerHTML =
+        history.map(item => `
+
+            <div class="history-item">
+
+                <div class="history-verdict">
+                    ${item.verdict}
+                </div>
+
+                <div class="history-text">
+                    ${item.text}
+                </div>
+
+                <div class="history-confidence">
+                    ${item.confidence}
+                </div>
+
+                <div class="history-time">
+                    ${item.time}
+                </div>
+
+            </div>
+
+        `).join("");
+}
+
+
+function clearHistory() {
+
+    localStorage.removeItem(
+        "truthlens_history"
+    );
+
+    displayHistory();
+}
+
+
+// Save successful result
+
+{% if result %}
+    saveHistory();
+{% endif %}
+
+displayHistory();
+
+
+// ================= THEME =================
+
+function toggleTheme() {
+
+    document.body.classList.toggle(
+        "light-theme"
+    );
+
+}
+
+</script>
+
+</body>
+</html>
